@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sample Site</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="/front.js"></script>
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <style>
+        body { padding-top:50px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="Login-containers">
+            <div class="form-group">
+                <label for="UsernameInput">Username</label>
+                <input type="text" class="form-control" id="UsernameInput" placeholder="Username">
+            </div>
+            <div class="form-group">
+                <label for="PasswordInput">Password</label>
+                <input type="password" class="form-control" id="PasswordInput" placeholder="Password">
+            </div>
+            <button id="Login" type="submit" class="btn btn-primary">Login</button>
+        </div>
+        <div hidden id="Buttons">
+            <button id="Restart" type="submit" class="btn btn-primary">Restart Server</button>
+        </div>
+    </br>
+        <div hidden id="Command">
+            <div class="form-group">
+                <label for="CommandInput">Command</label>
+                <input type="text" class="form-control" id="CommandInput" placeholder="cmd">
+            </div>
+            <button id="Run" type="submit" class="btn btn-primary">Run</button>
+        </div>
+    </br>
+        <div hidden id="Output">
+            <div id="stdout" class="text-primary"></div>
+            </br>
+            <div id="stderr" class="text-danger"></div>
+        </div>
+    </div>
+</body>
+</html>

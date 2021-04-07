@@ -136,7 +136,10 @@ const monitorHealth = () => {
             `Can not restart ${serverServiceName} service. Tried ${restartRetries} times. Shutting down the Health Monitor...\n`
         )
     }
-    else if ( retriesEngine < engineNumReset && retriesService < serviceNumReset ) return timerMonitor = setTimeout(monitorHealth, intervalMonitor)
+    else if ( retriesEngine < engineNumReset && retriesService < serviceNumReset ){ 
+        clearTimeout(timerMonitor)
+        return timerMonitor = setTimeout(monitorHealth, intervalMonitor)
+    }
     fs.appendFileSync(
         path.join( __dirname, serverFailLogPath ),
         `[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][I] ` +
@@ -153,24 +156,29 @@ const monitorHealth = () => {
                 `There was an error in restarting server: \n` +
                 `${err}\n` +
                 `Will retry...\n`,
-                () => {timerMonitor = setTimeout(monitorHealth, intervalMonitor)}
+                () => {
+                    clearTimeout(timerMonitor)
+                    timerMonitor = setTimeout(monitorHealth, intervalMonitor)
+                }
             )
-            restartRetries++
+            return restartRetries++
         }
-        else{
-            restartRetries = 0
-            fs.appendFile(
-                path.join( __dirname, serverFailLogPath ),
-                `[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][S] ` +
-                `Server restarted successfully: \n` +
-                stdout&&stdout.length?`out:\n${stdout}\n`:'' +
-                stderr&&stderr.length?`err:\n${stderr}\n`:'',
-                () => {timerMonitor = setTimeout(monitorHealth, intervalMonitor)}
-            )
-        }
+        restartRetries = 0
+        fs.appendFile(
+            path.join( __dirname, serverFailLogPath ),
+            `[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][S] ` +
+            `Server restarted successfully: \n` +
+            stdout&&stdout.length?`out:\n${stdout}\n`:'' +
+            stderr&&stderr.length?`err:\n${stderr}\n`:'',
+            () => {
+                clearTimeout(timerMonitor)
+                timerMonitor = setTimeout(monitorHealth, intervalMonitor)
+            }
+        )
     })
 }
 
+clearTimeout(timerMonitor)
 timerMonitor = setTimeout(monitorHealth, intervalMonitor)
 
 app.use(express.static('public'))

@@ -49,6 +49,7 @@ let intervalMonitor = 2000
 let stopMonitor = false
 let restartRetries = 0
 let restartNumRestart = 3
+let timerMonitor = setTimeout(()=>{}, 100)
 
 let stopEngineCheck = true
 let intervalEngineCheck = 5000
@@ -66,6 +67,7 @@ const globalURL = `http://raverdating.com`
 const localURL = `http://127.0.0.1:3000`
 
 const checkEngine = (port) => {
+    clearTimeout(timerEngine)
     if (stopEngineCheck) return
     axios({
         method: 'get',
@@ -74,24 +76,27 @@ const checkEngine = (port) => {
     })
     .then(response => {
         retriesEngine = 0
-        console.log(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}] ${globalURL} is running`)
+        console.log(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][I] ${globalURL} is running`)
+        clearTimeout(timerEngine)
         timerEngine = setTimeout(checkEngine, intervalEngineCheck)
     })
     .catch(err => {
         if (err && err.request && err.request._response)
-            console.warn('[req-answer]', err.request._response)
+            console.warn(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][E]`, '[req-answer]', err.request._response)
         if (err && err.response && err.response.request)
-            console.warn('[res-answer]', err.response.request._response)
+            console.warn(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][E]`, '[res-answer]', err.response.request._response)
         if (err.response){
-            console.warn('[res-data]', err.response.data)
-            console.warn('[res-status]', err.response.status)
+            console.warn(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][E]`, '[res-data]', err.response.data)
+            console.warn(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][E]`, '[res-status]', err.response.status)
         }
         if (err && err.response && errorCodes.includes(err.response.status) )
             retriesEngine++
+        clearTimeout(timerEngine)
         timerEngine = setTimeout(checkEngine, intervalEngineCheck)
     });
 }
 const checkService = (port) => {
+    clearTimeout(timerService)
     if (stopServiceCheck) return
     axios({
         method: 'get',
@@ -100,28 +105,30 @@ const checkService = (port) => {
     })
     .then(response => {
         retriesService = 0
-        // console.log(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}] ${localURL} is running`)
+        console.log(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][I] ${localURL} is running`)
+        clearTimeout(timerService)
         timerService = setTimeout(checkService, intervalServiceCheck)
     })
     .catch(err => {
         if (err && err.request && err.request._response)
-            console.warn('[req-answer]', err.request._response)
+            console.warn(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][E]`, '[req-answer]', err.request._response)
         if (err && err.response && err.response.request)
-            console.warn('[res-answer]', err.response.request._response)
+            console.warn(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][E]`, '[res-answer]', err.response.request._response)
         if (err.response){
-            console.warn('[res-data]', err.response.data)
-            console.warn('[res-status]', err.response.status)
+            console.warn(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][E]`, '[res-data]', err.response.data)
+            console.warn(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][E]`, '[res-status]', err.response.status)
         }
         if (err && err.response && errorCodes.includes(err.response.status) )
             retriesService++
+        clearTimeout(timerService)
         timerService = setTimeout(checkService, intervalServiceCheck)
     });
 }
 
 const monitorHealth = () => {
-    console.log(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][I] Running Health Monitor`)
     if( stopMonitor ) return console.warn("[!] Health Monitor had been stopped.")
-    else if( restartRetries >= restartNumRestart  ){
+    console.log(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][I] Running Health Monitor`)
+    if( restartRetries >= restartNumRestart  ){
         console.error("[X] Can not restart server service")
         return fs.appendFile(
             path.join( __dirname, serverFailLogPath ),
@@ -129,7 +136,7 @@ const monitorHealth = () => {
             `Can not restart ${serverServiceName} service. Tried ${restartRetries} times. Shutting down the Health Monitor...\n`
         )
     }
-    else if ( retriesEngine < engineNumReset && retriesService < serviceNumReset ) return setTimeout(monitorHealth, intervalMonitor)
+    else if ( retriesEngine < engineNumReset && retriesService < serviceNumReset ) return timerMonitor = setTimeout(monitorHealth, intervalMonitor)
     fs.appendFileSync(
         path.join( __dirname, serverFailLogPath ),
         `[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][I] ` +
@@ -146,7 +153,7 @@ const monitorHealth = () => {
                 `There was an error in restarting server: \n` +
                 `${err}\n` +
                 `Will retry...\n`,
-                () => {setTimeout(monitorHealth, intervalMonitor)}
+                () => {timerMonitor = setTimeout(monitorHealth, intervalMonitor)}
             )
             restartRetries++
         }
@@ -158,11 +165,13 @@ const monitorHealth = () => {
                 `Server restarted successfully: \n` +
                 stdout&&stdout.length?`out:\n${stdout}\n`:'' +
                 stderr&&stderr.length?`err:\n${stderr}\n`:'',
-                () => {setTimeout(monitorHealth, intervalMonitor)}
+                () => {timerMonitor = setTimeout(monitorHealth, intervalMonitor)}
             )
         }
     })
 }
+
+timerMonitor = setTimeout(monitorHealth, intervalMonitor)
 
 app.use(express.static('public'))
 app.use(express.json())
@@ -227,6 +236,8 @@ app.post('/enable-monitor', ( req, res ) => {
     if (tokens[username] === token && admins[username] === 1){
         stopMonitor = false
         restartRetries = 0
+        clearTimeout(timerMonitor)
+        timerMonitor = setTimeout(monitorHealth, intervalMonitor)
 
         res.status(200).json({ message: result })
     }

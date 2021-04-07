@@ -10,7 +10,9 @@
   "author": "S. Hossein Katebi",
   "license": "ISC",
   "dependencies": {
+    "axios": "^0.21.1",
     "crypto": "^1.0.1",
-    "express": "^4.17.1"
+    "express": "^4.17.1",
+    "node-toobusy": "^0.6.3"
   }
 }

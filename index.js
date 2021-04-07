@@ -2,6 +2,7 @@ const express = require('express')
 const path = require('path')
 const fs = require('fs');
 const crypto = require('crypto')
+const axios = require('axios')
 const { spawn, exec } = require('child_process');
 const { stdout, stderr } = require('process');
 const app = express()
@@ -40,6 +41,128 @@ fs.readdir(loginPath, function (err, files) {
         })
     });
 })
+
+let serverFailLogPath = '/logs/server-fails.log'
+let timeout = 3000
+let errorCodes = [503, 502]
+let intervalMonitor = 2000
+let stopMonitor = false
+let restartRetries = 0
+let restartNumRestart = 3
+
+let stopEngineCheck = true
+let intervalEngineCheck = 5000
+let timerEngine = setTimeout(()=>{}, 100)
+let retriesEngine = 0
+let engineNumReset = 3
+
+let stopServiceCheck = true
+let intervalServiceCheck = 5000
+let timerService = setTimeout(()=>{}, 100)
+let retriesService = 0
+let serviceNumReset = 3
+
+const globalURL = `http://raverdating.com`
+const localURL = `http://127.0.0.1:3000`
+
+const checkEngine = (port) => {
+    if (stopEngineCheck) return
+    axios({
+        method: 'get',
+        url: `${globalURL}/is-server-running`,
+        timeout: timeout,
+    })
+    .then(response => {
+        retriesEngine = 0
+        console.log(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}] ${globalURL} is running`)
+        timerEngine = setTimeout(checkEngine, intervalEngineCheck)
+    })
+    .catch(err => {
+        if (err && err.request && err.request._response)
+            console.warn('[req-answer]', err.request._response)
+        if (err && err.response && err.response.request)
+            console.warn('[res-answer]', err.response.request._response)
+        if (err.response){
+            console.warn('[res-data]', err.response.data)
+            console.warn('[res-status]', err.response.status)
+        }
+        if (err && err.response && errorCodes.includes(err.response.status) )
+            retriesEngine++
+        timerEngine = setTimeout(checkEngine, intervalEngineCheck)
+    });
+}
+const checkService = (port) => {
+    if (stopServiceCheck) return
+    axios({
+        method: 'get',
+        url: `${localURL}/is-server-running`,
+        timeout: timeout,
+    })
+    .then(response => {
+        retriesService = 0
+        // console.log(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}] ${localURL} is running`)
+        timerService = setTimeout(checkService, intervalServiceCheck)
+    })
+    .catch(err => {
+        if (err && err.request && err.request._response)
+            console.warn('[req-answer]', err.request._response)
+        if (err && err.response && err.response.request)
+            console.warn('[res-answer]', err.response.request._response)
+        if (err.response){
+            console.warn('[res-data]', err.response.data)
+            console.warn('[res-status]', err.response.status)
+        }
+        if (err && err.response && errorCodes.includes(err.response.status) )
+            retriesService++
+        timerService = setTimeout(checkService, intervalServiceCheck)
+    });
+}
+
+const monitorHealth = () => {
+    console.log(`[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][I] Running Health Monitor`)
+    if( stopMonitor ) return console.warn("[!] Health Monitor had been stopped.")
+    else if( restartRetries >= restartNumRestart  ){
+        console.error("[X] Can not restart server service")
+        return fs.appendFile(
+            path.join( __dirname, serverFailLogPath ),
+            `[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][E] ` +
+            `Can not restart ${serverServiceName} service. Tried ${restartRetries} times. Shutting down the Health Monitor...\n`
+        )
+    }
+    else if ( retriesEngine < engineNumReset && retriesService < serviceNumReset ) return setTimeout(monitorHealth, intervalMonitor)
+    fs.appendFileSync(
+        path.join( __dirname, serverFailLogPath ),
+        `[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][I] ` +
+        `Engine had ${retriesEngine} retries and ` +
+        `Service had ${retriesService} retries. ` +
+        `Service is going to restart.\n`
+    )
+    exec(`service ${serverServiceName} restart`, (err, stdout, stderr)=>{
+        if (err){
+            console.log(err)
+            fs.appendFile(
+                path.join( __dirname, serverFailLogPath ),
+                `[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][E] ` +
+                `There was an error in restarting server: \n` +
+                `${err}\n` +
+                `Will retry...\n`,
+                () => {setTimeout(monitorHealth, intervalMonitor)}
+            )
+            restartRetries++
+        }
+        else{
+            restartRetries = 0
+            fs.appendFile(
+                path.join( __dirname, serverFailLogPath ),
+                `[${(new Date()).toISOString().replace('T', ' - ').replace('Z', '')}][S] ` +
+                `Server restarted successfully: \n` +
+                stdout&&stdout.length?`out:\n${stdout}\n`:'' +
+                stderr&&stderr.length?`err:\n${stderr}\n`:'',
+                () => {setTimeout(monitorHealth, intervalMonitor)}
+            )
+        }
+    })
+}
 
 app.use(express.static('public'))
 app.use(express.json())
@@ -94,6 +217,74 @@ app.post('/run', (req, res) => {
             }
             res.status(200).json({out:stdout, err:stderr})
         })
+    else
+        res.status(403).send()
+})
+
+app.post('/enable-monitor', ( req, res ) => {
+    const tkn = req.body.token
+    const [ username , token ] = tkn.split('-')
+    if (tokens[username] === token && admins[username] === 1){
+        stopMonitor = false
+        restartRetries = 0
+
+        res.status(200).json({ message: result })
+    }
+    else
+        res.status(403).send()
+})
+
+app.post('/disable-monitor', ( req, res ) => {
+    const tkn = req.body.token
+    const [ username , token ] = tkn.split('-')
+    if (tokens[username] === token && admins[username] === 1){
+        stopMonitor = true
+
+        res.status(200).json({ message: result })
+    }
+    else
+        res.status(403).send()
+})
+
+app.post('/set-monitor-params', ( req, res ) => {
+    const tkn = req.body.token
+    const [ username , token ] = tkn.split('-')
+    if (tokens[username] === token && admins[username] === 1){
+        let { engine, service, engineInterval, serviceInterval } = req.body
+
+        engine = engine?true:(engine===false?false:undefined)
+        service = service?true:(service===false?false:undefined)
+
+        engineInterval = parseInt( engineInterval )
+        serviceInterval = parseInt( serviceInterval )
+
+        if( engineInterval ) intervalEngineCheck = engineInterval
+        if( serviceInterval ) intervalServiceCheck = serviceInterval
+
+        let result = "Done"
+
+        if( !engine && !service ) return res.status(200).json({ message: result })
+
+        if ( engine !== undefined ) {
+            stopEngineCheck = !engine
+            result += stopEngineCheck?' deactivating engine check':' activating engine check'
+        }
+        if ( service !== undefined ) {
+            stopServiceCheck = !service
+            result += stopServiceCheck?' deactivating service check':' activating service check'
+        }
+
+        clearTimeout(timerEngine)
+        clearTimeout(timerService)
+
+        retriesEngine = 0
+        retriesService = 0
+
+        timerEngine = setTimeout( checkEngine, intervalEngineCheck )
+        timerService = setTimeout( checkService, intervalServiceCheck/2 )
+
+        res.status(200).json({ message: result })
+    }
     else
         res.status(403).send()
 })

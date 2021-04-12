@@ -51,13 +51,13 @@ let restartRetries = 0
 let restartNumRestart = 3
 let timerMonitor = setTimeout(()=>{}, 100)
 
-let stopEngineCheck = true
+let stopEngineCheck = false
 let intervalEngineCheck = 5000
 let timerEngine = setTimeout(()=>{}, 100)
 let retriesEngine = 0
 let engineNumReset = 3
 
-let stopServiceCheck = true
+let stopServiceCheck = false
 let intervalServiceCheck = 5000
 let timerService = setTimeout(()=>{}, 100)
 let retriesService = 0

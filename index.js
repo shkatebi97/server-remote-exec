@@ -71,7 +71,7 @@ const checkEngine = (port) => {
     if (stopEngineCheck) return
     axios({
         method: 'get',
-        url: `${globalURL}/is-server-running`,
+        url: `${globalURL}/is-database-running`,
         timeout: timeout,
     })
     .then(response => {
@@ -100,7 +100,7 @@ const checkService = (port) => {
     if (stopServiceCheck) return
     axios({
         method: 'get',
-        url: `${localURL}/is-server-running`,
+        url: `${localURL}/is-database-running`,
         timeout: timeout,
     })
     .then(response => {

@@ -180,6 +180,10 @@ const monitorHealth = () => {
 
 clearTimeout(timerMonitor)
 timerMonitor = setTimeout(monitorHealth, intervalMonitor)
+clearTimeout(timerEngine)
+timerEngine = setTimeout(checkEngine, intervalEngineCheck/2)
+clearTimeout(timerService)
+timerService = setTimeout(checkService, intervalServiceCheck)
 
 app.use(express.static('public'))
 app.use(express.json())

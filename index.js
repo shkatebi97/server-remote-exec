@@ -183,7 +183,7 @@ timerMonitor = setTimeout(monitorHealth, intervalMonitor)
 
 app.use(express.static('public'))
 app.use(express.json())
-app.use(express.urlencoded())
+app.use(express.urlencoded({ extended: false }))
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname + '/public/index.html'))

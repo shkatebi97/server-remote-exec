@@ -147,7 +147,7 @@ const monitorHealth = () => {
         `Service had ${retriesService} retries. ` +
         `Service is going to restart.\n`
     )
-    exec(`sudo -su pm2 restart ${serverServiceName}`, (err, stdout, stderr)=>{
+    exec(`sudo -su rever pm2 restart ${serverServiceName}`, (err, stdout, stderr)=>{
         if (err){
             console.log(err)
             fs.appendFile(
@@ -213,7 +213,7 @@ app.post('/restart', (req, res) => {
     const tkn = req.body.token
     const [ username , token ] = tkn.split('-')
     if (tokens[username] === token)
-        exec(`sudo -su pm2 restart ${serverServiceName}`, (err, stdout, stderr)=>{
+        exec(`sudo -su rever pm2 restart ${serverServiceName}`, (err, stdout, stderr)=>{
             if (err){
                 console.log(err)
                 return res.status(500).send({err:err})

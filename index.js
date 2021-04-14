@@ -9,7 +9,7 @@ const app = express()
 const port = 3001
 
 const loginPath = path.join(__dirname, 'logins')
-const serverServiceName = 'rever'
+const serverServiceName = 'www'
 
 const logins = []
 const admins = {}
@@ -147,7 +147,7 @@ const monitorHealth = () => {
         `Service had ${retriesService} retries. ` +
         `Service is going to restart.\n`
     )
-    exec(`service ${serverServiceName} restart`, (err, stdout, stderr)=>{
+    exec(`sudo -su pm2 restart ${serverServiceName}`, (err, stdout, stderr)=>{
         if (err){
             console.log(err)
             fs.appendFile(
@@ -213,7 +213,7 @@ app.post('/restart', (req, res) => {
     const tkn = req.body.token
     const [ username , token ] = tkn.split('-')
     if (tokens[username] === token)
-        exec(`service ${serverServiceName} restart`, (err, stdout, stderr)=>{
+        exec(`sudo -su pm2 restart ${serverServiceName}`, (err, stdout, stderr)=>{
             if (err){
                 console.log(err)
                 return res.status(500).send({err:err})
